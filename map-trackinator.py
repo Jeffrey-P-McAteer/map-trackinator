@@ -42,8 +42,11 @@ PIL = import_maybe_installing_with_pip('PIL', 'Pillow')
 #import PIL.Image
 from PIL import Image
 
-map_machine = import_maybe_installing_with_pip('map_machine', 'git+https://github.com/enzet/map-machine')
-import map_machine.main # we only ever sub-process this out via map_machine.main.__file__
+#map_machine = import_maybe_installing_with_pip('map_machine', 'git+https://github.com/enzet/map-machine')
+#import map_machine.main # we only ever sub-process this out via map_machine.main.__file__
+
+contextily = import_maybe_installing_with_pip('contextily')
+
 
 # Globals
 map_state_csv = os.path.join('out', 'positions.csv')
@@ -226,11 +229,11 @@ async def ws_req_handler(req):
   return ws
 
 async def http_map_req_handler(req):
-  #map_png = os.path.join('out', 'map.png')
+  map_png = os.path.join('out', 'map.png')
   map_svg = os.path.join('out', 'map.svg')
 
   # If map is old, re-render
-  if not os.path.exists(map_svg) or int(time.time()) - os.path.getmtime(map_svg) > 4:
+  if not os.path.exists(map_png) or int(time.time()) - os.path.getmtime(map_png) > 4:
     pos_reps = get_pos_reps()
     min_lat = 999.0
     max_lat = -999.0
@@ -247,17 +250,24 @@ async def http_map_req_handler(req):
         max_lon = rep['lon']
     
     # Bound these a little
-    min_lat *= 0.90 if min_lat > 0 else 1.10
-    max_lat *= 1.10 if max_lat > 0 else 0.90
-    min_lon *= 0.90
-    max_lon *= 1.10
+    zoom_diff = 0.001
+    zoom_min = 1.0 - zoom_diff
+    zoom_max = 1.0 + zoom_diff
+    min_lat *= zoom_min if min_lat > 0 else zoom_max
+    max_lat *= zoom_max if max_lat > 0 else zoom_min
+    min_lon *= zoom_min if min_lon > 0 else zoom_max
+    max_lon *= zoom_max if max_lon > 0 else zoom_min
 
-    call_map_machine(
-      'render', '-b={},{},{},{}'.format(min_lon, min_lat, max_lon, max_lat), '--output={}'.format(map_svg),
-    )
+    print(f'min_lat={min_lat} max_lat={max_lat} min_lon={min_lon} max_lon={max_lon}')
+    
+    img, ext = contextily.bounds2img(min_lon, min_lat, max_lon, max_lat, ll=True)
+    img_o = Image.fromarray(img, 'RGBA')
+    img_o.save(map_png)
+
+
 
   # Return file 
-  return aiohttp.web.FileResponse(map_svg)
+  return aiohttp.web.FileResponse(map_png)
 
 
 def main(args=sys.argv):
