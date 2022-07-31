@@ -11,6 +11,9 @@ import ssl
 import traceback
 import json
 import random
+import time
+import io
+import base64
 
 
 # Utility method to wrap imports with a call to pip to install first.
@@ -35,10 +38,16 @@ def import_maybe_installing_with_pip(import_name, pkg_name=None):
 aiohttp = import_maybe_installing_with_pip('aiohttp')
 import aiohttp.web
 
+PIL = import_maybe_installing_with_pip('PIL', 'Pillow')
+#import PIL.Image
+from PIL import Image
+
+map_machine = import_maybe_installing_with_pip('map_machine', 'git+https://github.com/enzet/map-machine')
+import map_machine.main # we only ever sub-process this out via map_machine.main.__file__
+
 # Globals
+map_state_csv = os.path.join('out', 'positions.csv')
 all_websockets = []
-
-
 
 def c(*args):
   subprocess.run([x for x in args if x is not None], check=True)
@@ -108,6 +117,36 @@ def get_local_ip():
     finally:
         sock.close() 
 
+def save_pos_rep(name, lat, lon):
+  timestamp = int(time.time())
+  with open(map_state_csv, 'a') as fd:
+    fd.write('{},{},{},{}\n'.format(name, timestamp, lat, lon))
+
+def get_pos_reps():
+  pos_rep_s = ''
+  with open(map_state_csv, 'r') as fd:
+    pos_rep_s = fd.read()
+  pos_rep_list = []
+  for line in pos_rep_s.splitlines(False):
+    if len(line) < 2:
+      continue
+    try:
+      columns = line.split(',')
+      pos_rep_list.append({
+        'name': str(columns[0]),
+        'timestamp': int(columns[1]),
+        'lat': float(columns[2]),
+        'lon': float(columns[3]),
+      })
+    except:
+      traceback.print_exc()
+  return pos_rep_list
+
+def call_map_machine(*args):
+  subprocess.run([
+    sys.executable, map_machine.main.__file__, *args
+  ])
+
 async def http_file_req_handler(req):
   # Normalize & trim path
   path = req.path.lower()
@@ -133,7 +172,10 @@ async def ws_req_handler(req):
   peername = req.transport.get_extra_info('peername')
   host = 'unk'
   if peername is not None:
-    host, port = peername
+    try:
+      host, port = peername
+    except:
+      pass
 
   print('ws req from {}'.format(host))
 
@@ -142,31 +184,86 @@ async def ws_req_handler(req):
 
   all_websockets.append(ws)
 
-  await ws.send_str('set_my_name("{}")'.format(host))
-
   async for msg in ws:
     if msg.type == aiohttp.WSMsgType.TEXT:
       print('WS From {}: {}'.format(host, msg.data))
-      
-      if msg.data.startswith('message='):
-        continue
 
-      # Broadcast to everyone else
-      # with CodeTimer('Broadcast to everyone else', unit='ms'):
-      #   await asyncio.gather(*[ maybe_await(lambda: w.send_str(msg.data)) for w in all_websockets if w != ws])
-      await asyncio.gather(*[ maybe_await(lambda: w.send_str(msg.data)) for w in all_websockets if w != ws])
+      try:
+        # Pull position data out + use it
+        data = json.loads(msg.data)
+        print('data={}'.format(data))
+
+        if 'new_icon' in data:
+
+          icon_name = data['name']
+
+          # Parse base64 string, save to out/{name}.png
+          icon_base64 = data['new_icon']
+          # Add padding b/c python's decoder is super strict
+          icon_base64 += "=" * ((4 - len(icon_base64) % 4) % 4)
+
+          image_bytes = base64.b64decode(icon_base64)
+          image_file_obj = io.BytesIO(image_bytes)
+          image_file_obj.seek(0)
+          #image_o = PIL.Image.open(image_file_obj)
+          image_o = Image.open(image_file_obj)
+
+          os.makedirs('out', exist_ok=True)
+          image_out_path = os.path.join('out', '{}.png'.format(icon_name) )
+          image_o.save(image_out_path, 'PNG')
+
+        else:
+          save_pos_rep(data['name'], data['lat'], data['lon'])
+
+      except:
+        traceback.print_exc()
       
     elif msg.type == aiohttp.WSMsgType.ERROR:
       print('ws connection closed with exception {}'.format(ws.exception()))
 
   all_websockets.remove(ws)
 
-  await asyncio.gather(*[ maybe_await(lambda: w.send_str('remove_camera_named("{}")'.format(host))) for w in all_websockets])
-
   return ws
+
+async def http_map_req_handler(req):
+  #map_png = os.path.join('out', 'map.png')
+  map_svg = os.path.join('out', 'map.svg')
+
+  # If map is old, re-render
+  if not os.path.exists(map_svg) or int(time.time()) - os.path.getmtime(map_svg) > 4:
+    pos_reps = get_pos_reps()
+    min_lat = 999.0
+    max_lat = -999.0
+    min_lon = 999.0
+    max_lon = -999.0
+    for rep in pos_reps:
+      if rep['lat'] < min_lat:
+        min_lat = rep['lat']
+      if rep['lat'] > max_lat:
+        max_lat = rep['lat']
+      if rep['lon'] < min_lon:
+        min_lon = rep['lon']
+      if rep['lon'] > max_lon:
+        max_lon = rep['lon']
+    
+    # Bound these a little
+    min_lat *= 0.90 if min_lat > 0 else 1.10
+    max_lat *= 1.10 if max_lat > 0 else 0.90
+    min_lon *= 0.90
+    max_lon *= 1.10
+
+    call_map_machine(
+      'render', '-b={},{},{},{}'.format(min_lon, min_lat, max_lon, max_lat), '--output={}'.format(map_svg),
+    )
+
+  # Return file 
+  return aiohttp.web.FileResponse(map_svg)
 
 
 def main(args=sys.argv):
+
+  # prep work to avoid re-doing it later
+  os.makedirs(os.path.dirname(map_state_csv), exist_ok=True)
 
   cert_file, key_file = get_ssl_cert_and_key_or_generate()
 
@@ -174,9 +271,22 @@ def main(args=sys.argv):
 
   server.add_routes([
     aiohttp.web.get('/', http_file_req_handler),
+    aiohttp.web.get('/index.html', http_file_req_handler),
     aiohttp.web.get('/ws', ws_req_handler),
+    aiohttp.web.get('/map', http_map_req_handler),
   ])
+
+
+  ssl_ctx = ssl.create_default_context(ssl.Purpose.CLIENT_AUTH)
+  ssl_ctx.load_cert_chain(cert_file, key_file)
+
+  port = int(os.environ.get('PORT', '4430'))
+
+  print('Your LAN ip address is: https://{}:{}/'.format(get_local_ip(), port))
+
+  aiohttp.web.run_app(server, ssl_context=ssl_ctx, port=port)
 
 
 if __name__ == '__main__':
   main()
+

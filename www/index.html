@@ -1,0 +1,157 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, user-scalable=no, minimum-scale=1.0, maximum-scale=1.0">
+
+  <title>Map Trackinator v0</title>
+
+  <script>
+window.ws = null;
+window.my_name = 'null';
+
+function begin_tracking_me() {
+  if (window.ws) {
+    // Try to close old connection
+    try {
+      window.ws.close();
+    }
+    catch (e) { console.log(e); }
+  }
+
+  // If we do not know a name, ask for one.
+  window.my_name = localStorage.getItem('my_name');
+  if (window.my_name === null || !window.my_name) {
+    window.my_name = window.prompt('What is this devices name?', 'null');
+  }
+  if (window.my_name === null || !window.my_name) {
+    window.alert('No name given, exiting tracker.');
+    return;
+  }
+  localStorage.setItem('my_name', window.my_name);
+
+
+  var ws_url = 'wss://'+location.hostname+':'+location.port+'/ws';
+  console.log('Connecting to ', ws_url);
+
+  window.ws = new WebSocket(ws_url);
+  window.ws.onclose = function (event) {
+    window.ws = null;
+  };
+  window.ws.onopen = function (event) {
+    console.log(event);
+  };
+  window.ws.onmessage = function (event) {
+    // try to execute as JS code? Sounds safe!
+    if (document.hasFocus()) {
+      eval(event.data);
+    }
+  };
+
+}
+
+function handle_new_icon_image() {
+  var image = document.getElementById('icon_upload').files[0];
+  var reader = new FileReader();
+  reader.onload = function(event) {
+    if (!window.ws) {
+      window.alert('Please begin tracking before uploading an image, we use the same connection to update image data.');
+      return;
+    }
+    //console.log('new icon image result = ', event.target.result); // Base64-encoded image, trim locally to 128x128px and upload
+
+    resizeImage(event.target.result, 64, 64, (new_icon) => {
+      window.ws.send(JSON.stringify({
+        'new_icon': new_icon,
+        'name': window.my_name,
+      }));
+    });
+
+  }
+  reader.readAsDataURL(image);
+}
+
+function send_location_periodic() {
+  if (window.ws) {
+    navigator.geolocation.getCurrentPosition(function(location) {
+      // console.log(location.coords.latitude);
+      // console.log(location.coords.longitude);
+      // console.log(location.coords.accuracy);
+
+      window.ws.send(JSON.stringify({
+        'lat': location.coords.latitude,
+        'lon': location.coords.longitude,
+        'acc': location.coords.accuracy,
+        'name': window.my_name,
+      }));
+    });
+  }
+}
+
+setInterval(send_location_periodic, 4 * 1000);
+
+function refresh_image_periodic() {
+  document.getElementById('map').src = 'map?cachebreak='+new Date().getTime();
+}
+
+setInterval(send_location_periodic, 4 * 1000);
+
+/* 3rd-party utility code */
+function resizeImage(base64Str, maxWidth = 128, maxHeight = 128, callback) {
+  let img = new Image()
+  img.src = base64Str
+  img.onload = () => {
+    let canvas = document.createElement('canvas')
+    const MAX_WIDTH = maxWidth
+    const MAX_HEIGHT = maxHeight
+    let width = img.width
+    let height = img.height
+
+    if (width > height) {
+      if (width > MAX_WIDTH) {
+        height *= MAX_WIDTH / width
+        width = MAX_WIDTH
+      }
+    } else {
+      if (height > MAX_HEIGHT) {
+        width *= MAX_HEIGHT / height
+        height = MAX_HEIGHT
+      }
+    }
+    canvas.width = width
+    canvas.height = height
+    let ctx = canvas.getContext('2d')
+    ctx.drawImage(img, 0, 0, width, height)
+    
+    callback(canvas.toDataURL())
+
+  };
+
+}
+
+  </script>
+
+</head>
+<body>
+  <details open>
+    <summary>Map Trackinator</summary>
+    <p>
+      Below is a map and buttons to add a new tracked entity to the map. TODO actual documentation here, if necessary.
+    </p>
+  </details>
+
+  <hr/>
+
+  <img id="map" src="map" style="width:98vw; height:auto;" alt="map" />
+
+  <hr/>
+
+  <button onclick="begin_tracking_me()">Begin tracking this device to map</button>
+  <br><br>
+  <input id="icon_upload" type="file" onChange="handle_new_icon_image()" />
+  <label for="icon_upload">Map Icon Upload</label>
+
+
+
+</body>
+</html>
