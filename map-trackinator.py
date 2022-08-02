@@ -129,11 +129,16 @@ def get_local_ip():
 
 def save_pos_rep(name, lat, lon):
   timestamp = int(time.time())
+  if not os.path.exists(map_state_csv):
+    with open(map_state_csv, 'w') as fd:
+      fd.write('')
   with open(map_state_csv, 'a') as fd:
     fd.write('{},{},{},{}\n'.format(name, timestamp, lat, lon))
 
 def get_pos_reps():
-  pos_rep_s = ''
+  if not os.path.exists(map_state_csv):
+    return []
+  pos_rep_s = ''  
   with open(map_state_csv, 'r') as fd:
     pos_rep_s = fd.read()
   pos_rep_list = []
