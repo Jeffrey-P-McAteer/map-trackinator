@@ -36,6 +36,7 @@ def import_maybe_installing_with_pip(import_name, pkg_name=None):
 
 # 3rd-party libs
 aiohttp = import_maybe_installing_with_pip('aiohttp')
+import aiohttp
 import aiohttp.web
 
 PIL = import_maybe_installing_with_pip('PIL', 'Pillow')
@@ -49,7 +50,10 @@ xyzservices = import_maybe_installing_with_pip('xyzservices')
 
 contextily = import_maybe_installing_with_pip('contextily')
 import contextily
-
+mercantile = import_maybe_installing_with_pip('mercantile')
+import mercantile
+numpy = import_maybe_installing_with_pip('numpy')
+import numpy
 
 # Globals
 map_state_csv = os.path.join('out', 'positions.csv')
@@ -238,7 +242,69 @@ def bound(value, _min, _max):
     return bound(value - (_max - _min), _min, _max)
   return value
 
-bad_xyz_i_values = [0,1,]
+# https://github.com/geopandas/contextily/blob/37d33ed33bed08b5ae6a79891a8a14cd53dd93d8/contextily/tile.py#L234
+async def trackinator_bounds2img(min_lon, min_lat, max_lon, max_lat):
+  source = xyzservices.TileProvider(
+    name='OSM',
+    url='https://tile.openstreetmap.org/{z}/{x}/{y}.png',
+    attribution='(C) OSM',
+  )
+  zoom = contextily.tile._calculate_zoom(min_lon, min_lat, max_lon, max_lat)
+  zoom = contextily.tile._validate_zoom(zoom, source, auto=True)
+  
+  tiles = []
+  arrays = []
+  for tile in mercantile.tiles(min_lon, min_lat, max_lon, max_lat, [zoom]):
+    tile_url = source.build_url(x=tile.x, y=tile.y, z=tile.z)
+    #print(f'TODO fetch tile_url={tile_url}')
+    image = None
+    while image is None:
+      try:
+        cache_file = os.path.join('out', '_{z}_{x}_{y}_'.format(x=tile.x, y=tile.y, z=tile.z)+( abs(hash(tile_url)).to_bytes(8,'big').hex() )+'.png'  )
+        if os.path.exists(cache_file) and os.path.getsize(cache_file) > 128:
+          with open(cache_file, 'rb') as image_stream:
+            image_o = Image.open(image_stream).convert("RGBA")
+            image = numpy.asarray(image_o)
+            image_o.close()
+
+        else:
+          async with aiohttp.ClientSession(timeout=aiohttp.ClientTimeout(total=9)) as session:
+            async with session.get(tile_url, headers={'user-agent': 'Map-Trackinator v0 (https://github.com/Jeffrey-P-McAteer/map-trackinator)'}) as resp:
+              
+              resp_bytes = await resp.read()
+
+              if resp.status != 200:
+                print(f'Read {len(resp_bytes)} bytes, resp.status={resp.status}')
+                print('')
+                print(resp_bytes.decode('utf-8'))
+                print('')
+                image = 'http error'
+
+              with io.BytesIO(resp_bytes) as image_stream:
+                image_o = Image.open(image_stream).convert("RGBA")
+                image = numpy.asarray(image_o)
+                image_o.save(cache_file, 'PNG')
+                image_o.close()
+
+      except:
+        traceback.print_exc()
+        time.sleep(1)
+      
+      if image is None:
+        print('Re-trying {}'.format(tile_url))
+
+    tiles.append(tile)
+    arrays.append(image)
+
+  merged, extent = contextily.tile._merge_tiles(tiles, arrays)
+  # lon/lat extent --> Spheric Mercator
+  west, south, east, north = extent
+  left, bottom = mercantile.xy(west, south)
+  right, top = mercantile.xy(east, north)
+  extent = left, right, bottom, top
+  return merged, extent
+
+
 
 async def http_map_req_handler(req):
   global bad_xyz_i_values
@@ -283,68 +349,15 @@ async def http_map_req_handler(req):
     max_lat = bound(max_lat, -90.0, 90.0)
     min_lon = bound(min_lon, -180.0, 180.0)
     max_lon = bound(max_lon, -180.0, 180.0)
-
-    #zoom_diff = 0.0010
-    # zoom_diff = 0.0002
-    # zoom_min = 1.0 - zoom_diff
-    # zoom_max = 1.0 + zoom_diff
-    # min_lat *= zoom_min if min_lat > 0 else zoom_max
-    # max_lat *= zoom_max if max_lat > 0 else zoom_min
-    # min_lon *= zoom_min if min_lon > 0 else zoom_max
-    # max_lon *= zoom_max if max_lon > 0 else zoom_min
-
     
     print(f'min_lat={min_lat} max_lat={max_lat} min_lon={min_lon} max_lon={max_lon}')
 
-    # img, ext = (None, None)
-    # xyz_providers = [x for x in xyzservices.providers.values()]
-    # i = 0
-    # while img is None and i < len(xyz_providers):
-    #   try:
-    #     if not i in bad_xyz_i_values:
-    #       print(f'i={i}/{len(xyz_providers)}')
-    #       img, ext = contextily.bounds2img(
-    #         min_lon, # West
-    #         min_lat, # South
-    #         max_lon, # East
-    #         max_lat, # North
-    #         ll=True,
-    #         source=xyz_providers[i]
-    #         # source=xyzservices.TileProvider(
-    #         #   name='Google',
-    #         #   url='https://mt0.google.com/vt?x={x}&y={y}&z={z}',
-    #         #   attribution='(C) Google',
-    #         # )
-    #       )
-    #   except:
-    #     traceback.print_exc()
-    #     bad_xyz_i_values.append(i)
-    #     if len(bad_xyz_i_values) >= len(xyz_providers):
-    #       bad_xyz_i_values = []
-    #       i = 0
-    #       print('Reset bad_xyz_i_values!')
-    #       time.sleep(1)
-
-    #   i += 1
-
-    img, ext = contextily.bounds2img(
+    img, ext = await trackinator_bounds2img(
       min_lon, # West
       min_lat, # South
       max_lon, # East
       max_lat, # North
-      ll=True,
-      # source=xyzservices.TileProvider(
-      #   name='Google',
-      #   url='https://mt0.google.com/vt?x={x}&y={y}&z={z}',
-      #   attribution='(C) Google',
-      # )
-      source=xyzservices.TileProvider(
-        name='OSM',
-        url='https://tile.openstreetmap.org/{z}/{x}/{y}.png',
-        attribution='(C) OSM',
-      )
     )
-
 
     img_o = Image.fromarray(img, 'RGBA')
     img_w, img_h = img_o.size
@@ -372,9 +385,7 @@ async def http_map_req_handler(req):
         width=1, fill=(250, 20, 20)
       )
 
-
     img_o.save(map_png)
-
 
 
   # Return file 
@@ -402,8 +413,14 @@ def main(args=sys.argv):
   ssl_ctx.load_cert_chain(cert_file, key_file)
 
   port = int(os.environ.get('PORT', '4430'))
+  server_lan_url = 'https://{}:{}/'.format(get_local_ip(), port)
 
-  print('Your LAN ip address is: https://{}:{}/'.format(get_local_ip(), port))
+  if shutil.which('sh'):
+    subprocess.Popen([
+      'sh', '-c', 'sleep 0.5 ; curl -vk {server_lan_url}map >/dev/null 2>/dev/null '.format(server_lan_url=server_lan_url)
+    ])
+
+  print('Your LAN host is'.format(server_lan_url))
 
   aiohttp.web.run_app(server, ssl_context=ssl_ctx, port=port)
 
