@@ -330,11 +330,7 @@ async def http_map_req_handler(req):
     lat_scale = max_lat - min_lat
     lon_scale = max_lon - min_lon
 
-    # EDIT not anymore. contextily borks if image too small, so force a min map size
-    # if lat_scale < 1.2:
-    #   lat_scale = 1.2
-    # if lon_scale < 1.2:
-    #   lon_scale = 1.2
+    print(f'ORIG lat_scale={lat_scale} lon_scale={lon_scale} min_lat={min_lat} max_lat={max_lat} min_lon={min_lon} max_lon={max_lon}')
 
     zoom_out_fraction = 0.10
     min_lat -= zoom_out_fraction * lat_scale
