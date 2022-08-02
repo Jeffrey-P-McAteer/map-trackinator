@@ -45,9 +45,6 @@ from PIL import Image, ImageDraw
 
 xyzservices = import_maybe_installing_with_pip('xyzservices')
 
-#map_machine = import_maybe_installing_with_pip('map_machine', 'git+https://github.com/enzet/map-machine')
-#import map_machine.main # we only ever sub-process this out via map_machine.main.__file__
-
 contextily = import_maybe_installing_with_pip('contextily')
 import contextily
 mercantile = import_maybe_installing_with_pip('mercantile')
@@ -156,11 +153,6 @@ def get_pos_reps():
     except:
       traceback.print_exc()
   return pos_rep_list
-
-def call_map_machine(*args):
-  subprocess.run([
-    sys.executable, map_machine.main.__file__, *args
-  ])
 
 async def http_file_req_handler(req):
   # Normalize & trim path
@@ -355,7 +347,7 @@ async def http_map_req_handler(req):
     min_lon = bound(min_lon, -180.0, 180.0)
     max_lon = bound(max_lon, -180.0, 180.0)
     
-    print(f'min_lat={min_lat} max_lat={max_lat} min_lon={min_lon} max_lon={max_lon}')
+    print(f'lat_scale={lat_scale} lon_scale={lon_scale} min_lat={min_lat} max_lat={max_lat} min_lon={min_lon} max_lon={max_lon}')
 
     img, ext = await trackinator_bounds2img(
       min_lon, # West
