@@ -287,7 +287,7 @@ async def trackinator_bounds2img(min_lon, min_lat, max_lon, max_lat):
         traceback.print_exc()
         time.sleep(1)
       
-      if image is None:
+      if image is None or str(image) == 'http error':
         print('Re-trying {}'.format(tile_url))
 
     tiles.append(tile)
