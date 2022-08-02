@@ -365,8 +365,8 @@ async def http_map_req_handler(req):
     # Define lat,lon -> y,x translator so we can draw images & lines on top of things relative to the image
     def lat_lon_2_xy(lat, lon):
       return (
-        int(lon - min_lon) * (img_w / lon_scale),
-        int(lat - min_lat) * (img_h / lat_scale)
+        int( ((lon - min_lon) / lon_scale) * img_w ),
+        int( ((lat - min_lat) / lat_scale) * img_h )
       )
 
     # Grap each name, pos_name_locations[x] is x's (lat, lon) locations from oldest -> newest
@@ -380,6 +380,7 @@ async def http_map_req_handler(req):
 
     img_od = ImageDraw.Draw(img_o)
     for name, coords in pos_name_locations.items():
+      print(f'{name} line coords = {[lat_lon_2_xy(lat, lon) for lat,lon in coords]}')
       img_od.line(
         [lat_lon_2_xy(lat, lon) for lat,lon in coords],
         width=1, fill=(250, 20, 20)
