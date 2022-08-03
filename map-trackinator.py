@@ -381,7 +381,7 @@ async def re_render_map():
   def lat_lon_2_xy(lat, lon):
     return (
       int( ((lon - min_lon) / lon_scale) * img_w ),
-      int( ((lat - min_lat) / lat_scale) * img_h ),
+      img_h - int( ((lat - min_lat) / lat_scale) * img_h ), # Y is flipped
     )
 
   # Grap each name, pos_name_locations[x] is x's (lat, lon) locations from oldest -> newest
