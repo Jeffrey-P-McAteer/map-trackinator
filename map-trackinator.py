@@ -246,8 +246,21 @@ async def trackinator_bounds2img(min_lon, min_lat, max_lon, max_lat):
     url='https://tile.openstreetmap.org/{z}/{x}/{y}.png',
     attribution='(C) OSM',
   )
-  zoom = contextily.tile._calculate_zoom(min_lon, min_lat, max_lon, max_lat)
-  zoom = contextily.tile._validate_zoom(zoom, source, auto=True)
+  zoom = 99
+  while zoom > 20:
+    zoom = contextily.tile._calculate_zoom(min_lon, min_lat, max_lon, max_lat)
+    zoom = contextily.tile._validate_zoom(zoom, source, auto=True)
+    if zoom > 20:
+      # zoom min/max lat/lon out a bit
+      lat_scale = max_lat - min_lat
+      lon_scale = max_lon - min_lon
+      print(f'Zooming out lat_scale={lat_scale} lon_scale={lon_scale} min_lat={min_lat} max_lat={max_lat} min_lon={min_lon} max_lon={max_lon}')
+      zoom_out_fraction = 0.10
+      min_lat -= zoom_out_fraction * lat_scale
+      max_lat += zoom_out_fraction * lat_scale
+      min_lon -= zoom_out_fraction * lon_scale
+      max_lon += zoom_out_fraction * lon_scale
+
   
   tiles = []
   arrays = []
@@ -330,7 +343,7 @@ async def http_map_req_handler(req):
     lat_scale = max_lat - min_lat
     lon_scale = max_lon - min_lon
 
-    print(f'ORIG lat_scale={lat_scale} lon_scale={lon_scale} min_lat={min_lat} max_lat={max_lat} min_lon={min_lon} max_lon={max_lon}')
+    #print(f'ORIG lat_scale={lat_scale} lon_scale={lon_scale} min_lat={min_lat} max_lat={max_lat} min_lon={min_lon} max_lon={max_lon}')
 
     zoom_out_fraction = 0.10
     min_lat -= zoom_out_fraction * lat_scale
