@@ -1,0 +1,19 @@
+# /etc/systemd/system/map-trackinator.service
+[Unit]
+Description=Pulls and runs map-trackinator from github
+
+[Service]
+User=root
+Group=nobody
+CPUWeight=20
+CPUQuota=94%
+IOWeight=20
+MemorySwapMax=0
+Type=oneshot
+ExecStart=/opt/map-trackinator/server.sh
+
+Restart=always
+RestartSec=30
+
+[Install]
+WantedBy=multi-user.target
