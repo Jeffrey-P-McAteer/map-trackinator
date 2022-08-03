@@ -148,10 +148,23 @@ function resizeImage(base64Str, maxWidth = 128, maxHeight = 128, callback) {
 
   <hr/>
 
-  <button onclick="begin_tracking_me()">Begin tracking this device to map</button>
-  <br><br>
-  <input id="icon_upload" type="file" onChange="handle_new_icon_image()" />
-  <label for="icon_upload">Map Icon Upload</label>
+  <details>
+    <summary>Old tracker controls</summary>
+
+    <button onclick="begin_tracking_me()">Begin tracking this device to map</button>
+    <br><br>
+    <input id="icon_upload" type="file" onChange="handle_new_icon_image()" />
+    <label for="icon_upload">Map Icon Upload</label>
+  </details>
+
+  <details open>
+    <summary>New tracker controls</summary>
+    <p>
+      Create the following automator/shortcut/whatever on your ios/android device. The API url is /{tracker name}/{decimal latitude}/{decimal longitude} which will add the position to {tracker name}'s line.'
+    </p>
+    <img src="ios-shortcut.jpg" />
+  </details>
+
 
 
 

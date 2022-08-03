@@ -460,6 +460,8 @@ def main(args=sys.argv):
   server.add_routes([
     aiohttp.web.get('/', http_file_req_handler),
     aiohttp.web.get('/index.html', http_file_req_handler),
+    aiohttp.web.get('/ios-shortcut.jpg', lambda req: aiohttp.web.FileResponse(os.path.join('www', 'ios-shortcut.jpg')) ),
+
     aiohttp.web.get('/ws', ws_req_handler), # Old, do not use
     aiohttp.web.get('/pos/{name}/{lat}/{lon}', http_pos_update_req_handler),
     aiohttp.web.get('/map', http_map_req_handler),
