@@ -88,13 +88,15 @@ function send_location_periodic() {
   }
 }
 
-setInterval(send_location_periodic, 4 * 1000);
+setInterval(send_location_periodic, 8 * 1000);
 
 function refresh_image_periodic() {
-  document.getElementById('map').src = 'map?cachebreak='+new Date().getTime();
+  if (document.hasFocus()) {
+    document.getElementById('map').src = 'map?cachebreak='+new Date().getTime();
+  }
 }
 
-setInterval(send_location_periodic, 4 * 1000);
+setInterval(refresh_image_periodic, 8 * 1000);
 
 /* 3rd-party utility code */
 function resizeImage(base64Str, maxWidth = 128, maxHeight = 128, callback) {

@@ -172,6 +172,20 @@ async def http_file_req_handler(req):
   print('Returning 404 for {}'.format(req.path))
   return aiohttp.web.HTTPNotFound()
 
+async def http_pos_update_req_handler(req):
+  name = 'UNK'
+  try:
+    name = str(req.match_info['name']).strip()
+    lat = float(req.match_info['lat'])
+    lon = float(req.match_info['lon'])
+
+    save_pos_rep(name, lat, lon)
+
+  except:
+    traceback.print_exc()
+    return aiohttp.web.Response(text='Error: {}'.format( traceback.format_exc() ))
+
+  return aiohttp.web.Response(text='Position recieved, thanks {}!'.format(name))
 
 async def ws_req_handler(req):
   global all_websockets
@@ -410,28 +424,33 @@ async def http_map_req_handler(req):
 
 
 def main(args=sys.argv):
-
+  use_ssl = False
   # prep work to avoid re-doing it later
   os.makedirs(os.path.dirname(map_state_csv), exist_ok=True)
 
-  cert_file, key_file = get_ssl_cert_and_key_or_generate()
+  cert_file, key_file = (None, None)
+  if use_ssl:
+    cert_file, key_file = get_ssl_cert_and_key_or_generate()
 
   server = aiohttp.web.Application()
 
   server.add_routes([
     aiohttp.web.get('/', http_file_req_handler),
     aiohttp.web.get('/index.html', http_file_req_handler),
-    aiohttp.web.get('/ws', ws_req_handler),
+    aiohttp.web.get('/ws', ws_req_handler), # Old, do not use
+    aiohttp.web.get('/pos/{name}/{lat}/{lon}', http_pos_update_req_handler),
     aiohttp.web.get('/map', http_map_req_handler),
   ])
 
 
-  ssl_ctx = ssl.create_default_context(ssl.Purpose.CLIENT_AUTH)
-  ssl_ctx.load_cert_chain(cert_file, key_file)
+  ssl_ctx = None
+  if use_ssl:
+    ssl_ctx = ssl.create_default_context(ssl.Purpose.CLIENT_AUTH)
+    ssl_ctx.load_cert_chain(cert_file, key_file)
 
-  port = int(os.environ.get('PORT', '4430'))
-  server_lan_url = 'https://{}:{}/'.format(get_local_ip(), port)
-
+  port = int(os.environ.get('PORT', '8081'))
+  server_lan_url = '{}://{}:{}/'.format('https' if use_ssl else 'http', get_local_ip(), port)
+  
   if shutil.which('sh'):
     subprocess.Popen([
       'sh', '-c', 'sleep 0.5 ; curl -vk {server_lan_url}map >/dev/null 2>/dev/null '.format(server_lan_url=server_lan_url)
@@ -439,7 +458,10 @@ def main(args=sys.argv):
 
   print('Your LAN host is'.format(server_lan_url))
 
-  aiohttp.web.run_app(server, ssl_context=ssl_ctx, port=port)
+  if use_ssl:
+    aiohttp.web.run_app(server, ssl_context=ssl_ctx, port=port)
+  else:
+    aiohttp.web.run_app(server, port=port)
 
 
 if __name__ == '__main__':
