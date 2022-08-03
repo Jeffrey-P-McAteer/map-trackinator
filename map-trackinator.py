@@ -418,7 +418,7 @@ async def http_map_req_handler(req):
   
   # If map is old, re-render
   if not os.path.exists(map_png) or int(time.time()) - os.path.getmtime(map_png) > 300:
-    re_render_map()
+    await re_render_map()
 
   # Return file 
   return aiohttp.web.FileResponse(map_png)
