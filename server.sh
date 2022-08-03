@@ -13,7 +13,7 @@ do
   do
     sleep 30
     GDIFF_LINES=$(git diff origin/master | wc -l)
-
+    echo "GDIFF_LINES=$GDIFF_LINES"
   done
   
   git pull

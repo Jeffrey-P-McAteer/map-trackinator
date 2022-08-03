@@ -330,98 +330,115 @@ async def trackinator_bounds2img(min_lon, min_lat, max_lon, max_lat):
   extent = left, right, bottom, top
   return merged, extent
 
+async def re_render_map():
+  map_png = os.path.join('out', 'map.png')
+
+  pos_reps = get_pos_reps()
+  min_lat = 999.0
+  max_lat = -999.0
+  min_lon = 999.0
+  max_lon = -999.0
+  for rep in pos_reps:
+    if rep['lat'] < min_lat:
+      min_lat = rep['lat']
+    if rep['lat'] > max_lat:
+      max_lat = rep['lat']
+    if rep['lon'] < min_lon:
+      min_lon = rep['lon']
+    if rep['lon'] > max_lon:
+      max_lon = rep['lon']
+  
+  # Bound these a little
+  lat_scale = max_lat - min_lat
+  lon_scale = max_lon - min_lon
+
+  #print(f'ORIG lat_scale={lat_scale} lon_scale={lon_scale} min_lat={min_lat} max_lat={max_lat} min_lon={min_lon} max_lon={max_lon}')
+
+  zoom_out_fraction = 0.10
+  min_lat -= zoom_out_fraction * lat_scale
+  max_lat += zoom_out_fraction * lat_scale
+  min_lon -= zoom_out_fraction * lon_scale
+  max_lon += zoom_out_fraction * lon_scale
+
+  min_lat = bound(min_lat, -90.0, 90.0)
+  max_lat = bound(max_lat, -90.0, 90.0)
+  min_lon = bound(min_lon, -180.0, 180.0)
+  max_lon = bound(max_lon, -180.0, 180.0)
+  
+  print(f'lat_scale={lat_scale} lon_scale={lon_scale} min_lat={min_lat} max_lat={max_lat} min_lon={min_lon} max_lon={max_lon}')
+
+  img, ext = await trackinator_bounds2img(
+    min_lon, # West
+    min_lat, # South
+    max_lon, # East
+    max_lat, # North
+  )
+
+  img_o = Image.fromarray(img, 'RGBA')
+  img_w, img_h = img_o.size
+  
+  # Define lat,lon -> y,x translator so we can draw images & lines on top of things relative to the image
+  def lat_lon_2_xy(lat, lon):
+    return (
+      int( ((lon - min_lon) / lon_scale) * img_w ),
+      int( ((lat - min_lat) / lat_scale) * img_h )
+    )
+
+  # Grap each name, pos_name_locations[x] is x's (lat, lon) locations from oldest -> newest
+  pos_name_locations = {}
+  for rep in pos_reps:
+    if not rep['name'] in pos_name_locations:
+      pos_name_locations[ rep['name'] ] = []
+    pos_name_locations[ rep['name'] ].append(
+      ( rep['lat'], rep['lon'] )
+    )
+
+  img_od = ImageDraw.Draw(img_o)
+  for name, coords in pos_name_locations.items():
+    xy_coords = [lat_lon_2_xy(lat, lon) for lat,lon in coords]
+    #print(f'{name} line coords = {xy_coords}')
+    img_od.line(
+      xy_coords,
+      width=1, fill=(250, 20, 20)
+    )
+    # And put name at last coordinate
+    last_xy = xy_coords[-1]
+    img_od.text(
+      last_xy, str(name),
+      fill=(20, 20, 250),
+      align='center',
+    )
+
+
+  img_o.save(map_png)
 
 
 async def http_map_req_handler(req):
-  global bad_xyz_i_values
-
   map_png = os.path.join('out', 'map.png')
-  map_svg = os.path.join('out', 'map.svg')
-
+  
   # If map is old, re-render
-  if not os.path.exists(map_png) or int(time.time()) - os.path.getmtime(map_png) > 60:
-    pos_reps = get_pos_reps()
-    min_lat = 999.0
-    max_lat = -999.0
-    min_lon = 999.0
-    max_lon = -999.0
-    for rep in pos_reps:
-      if rep['lat'] < min_lat:
-        min_lat = rep['lat']
-      if rep['lat'] > max_lat:
-        max_lat = rep['lat']
-      if rep['lon'] < min_lon:
-        min_lon = rep['lon']
-      if rep['lon'] > max_lon:
-        max_lon = rep['lon']
-    
-    # Bound these a little
-    lat_scale = max_lat - min_lat
-    lon_scale = max_lon - min_lon
-
-    #print(f'ORIG lat_scale={lat_scale} lon_scale={lon_scale} min_lat={min_lat} max_lat={max_lat} min_lon={min_lon} max_lon={max_lon}')
-
-    zoom_out_fraction = 0.10
-    min_lat -= zoom_out_fraction * lat_scale
-    max_lat += zoom_out_fraction * lat_scale
-    min_lon -= zoom_out_fraction * lon_scale
-    max_lon += zoom_out_fraction * lon_scale
-
-    min_lat = bound(min_lat, -90.0, 90.0)
-    max_lat = bound(max_lat, -90.0, 90.0)
-    min_lon = bound(min_lon, -180.0, 180.0)
-    max_lon = bound(max_lon, -180.0, 180.0)
-    
-    print(f'lat_scale={lat_scale} lon_scale={lon_scale} min_lat={min_lat} max_lat={max_lat} min_lon={min_lon} max_lon={max_lon}')
-
-    img, ext = await trackinator_bounds2img(
-      min_lon, # West
-      min_lat, # South
-      max_lon, # East
-      max_lat, # North
-    )
-
-    img_o = Image.fromarray(img, 'RGBA')
-    img_w, img_h = img_o.size
-    
-    # Define lat,lon -> y,x translator so we can draw images & lines on top of things relative to the image
-    def lat_lon_2_xy(lat, lon):
-      return (
-        int( ((lon - min_lon) / lon_scale) * img_w ),
-        int( ((lat - min_lat) / lat_scale) * img_h )
-      )
-
-    # Grap each name, pos_name_locations[x] is x's (lat, lon) locations from oldest -> newest
-    pos_name_locations = {}
-    for rep in pos_reps:
-      if not rep['name'] in pos_name_locations:
-        pos_name_locations[ rep['name'] ] = []
-      pos_name_locations[ rep['name'] ].append(
-        ( rep['lat'], rep['lon'] )
-      )
-
-    img_od = ImageDraw.Draw(img_o)
-    for name, coords in pos_name_locations.items():
-      xy_coords = [lat_lon_2_xy(lat, lon) for lat,lon in coords]
-      #print(f'{name} line coords = {xy_coords}')
-      img_od.line(
-        xy_coords,
-        width=1, fill=(250, 20, 20)
-      )
-      # And put name at last coordinate
-      last_xy = xy_coords[-1]
-      img_od.text(
-        last_xy, str(name),
-        fill=(20, 20, 250),
-        align='center',
-      )
-
-
-    img_o.save(map_png)
-
+  if not os.path.exists(map_png) or int(time.time()) - os.path.getmtime(map_png) > 300:
+    re_render_map()
 
   # Return file 
   return aiohttp.web.FileResponse(map_png)
+
+async def start_background_tasks(server):
+  loop = asyncio.get_event_loop()
+  task = loop.create_task(render_task())
+
+async def render_task():
+  last_num_positions = 0
+  while True:
+    try:
+      this_num_positions = len( get_pos_reps() )
+      if this_num_positions != last_num_positions:
+        await re_render_map()
+        last_num_positions = this_num_positions
+    except:
+      traceback.print_exc()
+
+    await asyncio.sleep(30)
 
 
 def main(args=sys.argv):
@@ -443,6 +460,7 @@ def main(args=sys.argv):
     aiohttp.web.get('/map', http_map_req_handler),
   ])
 
+  server.on_startup.append(start_background_tasks)
 
   ssl_ctx = None
   if use_ssl:
