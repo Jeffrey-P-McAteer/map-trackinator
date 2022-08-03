@@ -247,10 +247,11 @@ async def trackinator_bounds2img(min_lon, min_lat, max_lon, max_lat):
     attribution='(C) OSM',
   )
   zoom = 99
-  while zoom > 20:
+  max_zoom_lvl = 19
+  while zoom > max_zoom_lvl:
     zoom = contextily.tile._calculate_zoom(min_lon, min_lat, max_lon, max_lat)
     zoom = contextily.tile._validate_zoom(zoom, source, auto=True)
-    if zoom > 20:
+    if zoom > max_zoom_lvl:
       # zoom min/max lat/lon out a bit
       lat_scale = max_lat - min_lat
       lon_scale = max_lon - min_lon
