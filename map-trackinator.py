@@ -327,8 +327,8 @@ async def trackinator_bounds2img(min_lon, min_lat, max_lon, max_lat):
   west, south, east, north = extent
   left, bottom = mercantile.xy(west, south)
   right, top = mercantile.xy(east, north)
-  extent = left, right, bottom, top
-  return merged, extent
+  xy_extent = left, right, bottom, top
+  return merged, xy_extent, extent
 
 async def re_render_map():
   map_png = os.path.join('out', 'map.png')
@@ -367,7 +367,7 @@ async def re_render_map():
   
   print(f'lat_scale={lat_scale} lon_scale={lon_scale} min_lat={min_lat} max_lat={max_lat} min_lon={min_lon} max_lon={max_lon}')
 
-  img, ext = await trackinator_bounds2img(
+  img, xy_ext, ext = await trackinator_bounds2img(
     min_lon, # West
     min_lat, # South
     max_lon, # East
