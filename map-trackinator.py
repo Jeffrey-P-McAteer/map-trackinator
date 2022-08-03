@@ -180,6 +180,7 @@ async def http_pos_update_req_handler(req):
     lon = float(req.match_info['lon'])
 
     save_pos_rep(name, lat, lon)
+    print('Saved {} at {},{}'.format(name, lat, lon))
 
   except:
     traceback.print_exc()
@@ -402,7 +403,7 @@ async def http_map_req_handler(req):
     img_od = ImageDraw.Draw(img_o)
     for name, coords in pos_name_locations.items():
       xy_coords = [lat_lon_2_xy(lat, lon) for lat,lon in coords]
-      print(f'{name} line coords = {xy_coords}')
+      #print(f'{name} line coords = {xy_coords}')
       img_od.line(
         xy_coords,
         width=1, fill=(250, 20, 20)
