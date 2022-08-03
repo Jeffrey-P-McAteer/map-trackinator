@@ -9,7 +9,7 @@ CPUWeight=20
 CPUQuota=94%
 IOWeight=20
 MemorySwapMax=0
-Type=oneshot
+Type=simple
 ExecStart=/opt/map-trackinator/server.sh
 
 Restart=always
