@@ -422,7 +422,7 @@ async def http_map_req_handler(req):
   map_png = os.path.join('out', 'map.png')
   
   # If map is old, re-render
-  if not os.path.exists(map_png) or int(time.time()) - os.path.getmtime(map_png) > 300:
+  if not os.path.exists(map_png):
     await re_render_map()
 
   # Return file 
