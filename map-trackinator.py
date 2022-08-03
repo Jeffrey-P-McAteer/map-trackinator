@@ -373,11 +373,20 @@ async def http_map_req_handler(req):
 
     img_od = ImageDraw.Draw(img_o)
     for name, coords in pos_name_locations.items():
-      print(f'{name} line coords = {[lat_lon_2_xy(lat, lon) for lat,lon in coords]}')
+      xy_coords = [lat_lon_2_xy(lat, lon) for lat,lon in coords]
+      print(f'{name} line coords = {xy_coords}')
       img_od.line(
-        [lat_lon_2_xy(lat, lon) for lat,lon in coords],
+        xy_coords,
         width=1, fill=(250, 20, 20)
       )
+      # And put name at last coordinate
+      last_xy = xy_coords[-1]
+      img_od.text(
+        last_xy, str(name),
+        fill=(20, 20, 250),
+        align='center',
+      )
+
 
     img_o.save(map_png)
 
