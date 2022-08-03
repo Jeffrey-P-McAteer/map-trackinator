@@ -380,7 +380,7 @@ async def re_render_map():
   # Define lat,lon -> y,x translator so we can draw images & lines on top of things relative to the image
   def lat_lon_2_xy(lat, lon):
     return (
-      int( ((lat - min_lat) / lat_scale) * img_h ),
+      img_h - int( ((lat - min_lat) / lat_scale) * img_h ), # Flip X
       int( ((lon - min_lon) / lon_scale) * img_w ),
     )
 
