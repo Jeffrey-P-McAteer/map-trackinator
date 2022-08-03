@@ -374,7 +374,7 @@ async def re_render_map():
     max_lat, # North
   )
 
-
+  print(f'xy_ext={xy_ext}')
   print(f'ext={ext}')
 
   img_o = Image.fromarray(img, 'RGBA')
