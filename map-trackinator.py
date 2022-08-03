@@ -380,8 +380,8 @@ async def re_render_map():
   # Define lat,lon -> y,x translator so we can draw images & lines on top of things relative to the image
   def lat_lon_2_xy(lat, lon):
     return (
+      int( ((lat - min_lat) / lat_scale) * img_h ),
       int( ((lon - min_lon) / lon_scale) * img_w ),
-      int( ((lat - min_lat) / lat_scale) * img_h )
     )
 
   # Grap each name, pos_name_locations[x] is x's (lat, lon) locations from oldest -> newest
