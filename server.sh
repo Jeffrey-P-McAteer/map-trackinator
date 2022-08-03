@@ -12,6 +12,7 @@ do
   while [ "$GDIFF_LINES" -lt 1 ]
   do
     sleep 30
+    git fetch
     GDIFF_LINES=$(git diff origin/master | wc -l)
     echo "GDIFF_LINES=$GDIFF_LINES"
   done
