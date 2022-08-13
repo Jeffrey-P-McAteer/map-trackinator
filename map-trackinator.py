@@ -399,6 +399,7 @@ async def re_render_map():
     )
 
   img_od = ImageDraw.Draw(img_o)
+  img_text_font = ImageFont.truetype(os.path.join('www', 'arial.ttf'), size=16)
   for name, coords in pos_name_locations.items():
     xy_coords = [lat_lon_2_xy(lat, lon) for lat,lon in coords]
     #print(f'{name} line coords = {xy_coords}')
@@ -412,6 +413,7 @@ async def re_render_map():
       last_xy, str(name),
       fill=(20, 20, 250),
       align='center',
+      font=img_text_font,
     )
 
 
