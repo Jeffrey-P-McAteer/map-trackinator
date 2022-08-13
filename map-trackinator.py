@@ -41,7 +41,7 @@ import aiohttp.web
 
 PIL = import_maybe_installing_with_pip('PIL', 'Pillow')
 #import PIL.Image
-from PIL import Image, ImageDraw
+from PIL import Image, ImageDraw, ImageFont
 
 xyzservices = import_maybe_installing_with_pip('xyzservices')
 
