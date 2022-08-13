@@ -405,7 +405,7 @@ async def re_render_map():
     #print(f'{name} line coords = {xy_coords}')
     img_od.line(
       xy_coords,
-      width=1, fill=(250, 20, 20)
+      width=2, fill=(250, 20, 20)
     )
     # And put name at last coordinate
     last_xy = xy_coords[-1]
