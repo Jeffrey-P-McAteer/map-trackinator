@@ -258,7 +258,11 @@ def bound(value, _min, _max):
 async def trackinator_bounds2img(min_lon, min_lat, max_lon, max_lat):
   source = xyzservices.TileProvider(
     name='OSM',
-    url='https://tile.openstreetmap.org/{z}/{x}/{y}.png',
+    #url='https://tile.openstreetmap.org/{z}/{x}/{y}.png',
+    url=random.choice([
+      'https://a.tile.openstreetmap.fr/hot/{z}/{x}/{y}.png',
+      'https://b.tile.openstreetmap.fr/hot/{z}/{x}/{y}.png',
+    ])
     attribution='(C) OSM',
   )
   zoom = 99
@@ -286,7 +290,8 @@ async def trackinator_bounds2img(min_lon, min_lat, max_lon, max_lat):
     image = None
     while image is None:
       try:
-        cache_file = os.path.join('out', '_{z}_{x}_{y}_'.format(x=tile.x, y=tile.y, z=tile.z)+( abs(hash(tile_url)).to_bytes(8,'big').hex() )+'.png'  )
+        normalized_tile_url = tile_url.replace('b.tile', 'a.tile') # Ensure both/all servers hash the same
+        cache_file = os.path.join('out', '_{z}_{x}_{y}_'.format(x=tile.x, y=tile.y, z=tile.z)+( abs(hash(normalized_tile_url)).to_bytes(8,'big').hex() )+'.png'  )
         if os.path.exists(cache_file) and os.path.getsize(cache_file) > 128:
           with open(cache_file, 'rb') as image_stream:
             image_o = Image.open(image_stream).convert("RGBA")
