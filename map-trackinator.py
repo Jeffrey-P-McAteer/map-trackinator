@@ -262,7 +262,7 @@ async def trackinator_bounds2img(min_lon, min_lat, max_lon, max_lat):
     url=random.choice([
       'https://a.tile.openstreetmap.fr/hot/{z}/{x}/{y}.png',
       'https://b.tile.openstreetmap.fr/hot/{z}/{x}/{y}.png',
-    ])
+    ]),
     attribution='(C) OSM',
   )
   zoom = 99
