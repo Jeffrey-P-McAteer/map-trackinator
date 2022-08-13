@@ -417,6 +417,19 @@ async def re_render_map():
 
   img_o.save(map_png)
 
+async def http_clear_map_req_handler(req):
+  global map_state_csv
+
+  map_png = os.path.join('out', 'map.png')
+  os.remove(map_png)
+
+  os.remove(map_state_csv)
+
+  return aiohttp.web.Response(text='Data cleared!')
+
+
+  
+
 
 async def http_map_req_handler(req):
   map_png = os.path.join('out', 'map.png')
@@ -463,7 +476,10 @@ def main(args=sys.argv):
     aiohttp.web.get('/ios-shortcut.jpg', lambda req: aiohttp.web.FileResponse(os.path.join('www', 'ios-shortcut.jpg')) ),
 
     aiohttp.web.get('/ws', ws_req_handler), # Old, do not use
+    
+
     aiohttp.web.get('/pos/{name}/{lat}/{lon}', http_pos_update_req_handler),
+    aiohttp.web.get('/clear-map', http_clear_map_req_handler),
     aiohttp.web.get('/map', http_map_req_handler),
   ])
 

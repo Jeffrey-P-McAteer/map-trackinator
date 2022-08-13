@@ -155,6 +155,12 @@ function resizeImage(base64Str, maxWidth = 128, maxHeight = 128, callback) {
     <br><br>
     <input id="icon_upload" type="file" onChange="handle_new_icon_image()" />
     <label for="icon_upload">Map Icon Upload</label>
+    <br/>
+
+    <a href="/clear-map">Clear map data (no confirmation, effect is immediate)</a>
+
+    <br/><br/>
+
   </details>
 
   <details open>
@@ -163,6 +169,10 @@ function resizeImage(base64Str, maxWidth = 128, maxHeight = 128, callback) {
       Create the following automator/shortcut/whatever on your ios/android device. The API url is /{tracker name}/{decimal latitude}/{decimal longitude} which will add the position to {tracker name}'s line.'
     </p>
     <img src="ios-shortcut.jpg" />
+    <br>
+    <a href="/clear-map" style="border: 1pt solid red; margin: 6pt; padding: 2pt;" onclick="return confirm('Are you sure you want to delete map data?')">Clear map data</a>
+    <br>
+
   </details>
 
 
