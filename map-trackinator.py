@@ -179,6 +179,9 @@ async def http_pos_update_req_handler(req):
     lat = float(req.match_info['lat'])
     lon = float(req.match_info['lon'])
 
+    if lat < -180.0 or lat > 180.0 or lon < -180.0 or lon > 180.0:
+      return aiohttp.web.Response(text=f"Cannot understant lat={lat} lon={lon}, is one of the numbers too large/small?", status=406)
+
     save_pos_rep(name, lat, lon)
     print('Saved {} at {},{}'.format(name, lat, lon))
 
