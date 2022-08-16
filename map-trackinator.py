@@ -187,7 +187,7 @@ async def http_pos_update_req_handler(req):
 
   except:
     traceback.print_exc()
-    return aiohttp.web.Response(text='Error: {}'.format( traceback.format_exc() ))
+    return aiohttp.web.Response(text='Error: {}'.format( traceback.format_exc() ), status=406)
 
   return aiohttp.web.Response(text='Position recieved, thanks {}!'.format(name))
 
