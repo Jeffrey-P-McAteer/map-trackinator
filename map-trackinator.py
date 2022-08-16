@@ -466,7 +466,7 @@ async def render_task():
     except:
       traceback.print_exc()
 
-    await asyncio.sleep(30)
+    await asyncio.sleep(20)
 
 
 def main(args=sys.argv):
